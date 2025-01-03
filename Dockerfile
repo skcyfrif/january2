@@ -1,37 +1,17 @@
-# Use PHP with Apache as the base image
-FROM php:7.4-apache
+# Use a base image for Node.js
+FROM node:16
 
-# Install necessary PHP extensions and dependencies for CakePHP
-RUN apt-get update && apt-get install -y \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    libicu-dev \
-    zip \
-    unzip \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-configure intl \
-    && docker-php-ext-install gd pdo pdo_mysql mysqli intl \
-    && apt-get clean
+# Set the working directory
+WORKDIR /app
 
-# Enable Apache rewrite module (needed for CakePHP routing)
-RUN a2enmod rewrite
+# Copy application files
+COPY app/ .
 
-# Set the working directory to the web root of CakePHP
-WORKDIR /var/www/html
+# Install dependencies
+RUN npm install
 
-# Copy the entire CakePHP project into the container
-COPY ./ /var/www/html/
+# Expose the port the app runs on
+EXPOSE 3000
 
-# Set appropriate permissions
-RUN chown -R www-data:www-data /var/www/html/
-RUN chmod -R 755 /var/www/html/
-
-# Install Composer (specific version)
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-
-# Expose port 80 for web access
-EXPOSE 80
-
-# Run Apache in the foreground
-CMD ["apache2-foreground"]
+# Start the application
+CMD ["node", "index.js"]

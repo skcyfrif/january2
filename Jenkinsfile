@@ -2,54 +2,38 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "docker.io"
-        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'
+        DOCKERHUB_CREDENTIALS = credentials('cyfdoc')
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Clone Repository') {
+            steps {
+                git branch: 'main', url: 'https://github.com/skcyfrif/january2.git'
+            }
+        }
+
+        stage('Build Docker Image') {
             steps {
                 script {
-                    echo "Cloning repository..."
-                    checkout scm
+                    sh 'docker build -t cyfdoc/app-name .'
                 }
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Push Docker Image to DockerHub') {
             steps {
                 script {
-                    echo "Building Docker images using Docker Compose..."
-                    dir('soumya') {  // Navigate to the 'soumya' directory
-                        sh 'docker-compose build'
-                    }
-                    echo "List Docker images:"
-                    sh 'docker images -q'  // List image IDs only
+                    sh 'echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin'
+                    sh 'docker push cyfdoc/app-name'
                 }
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Deploy Application') {
             steps {
                 script {
-                    echo "Pushing images to Docker Hub..."
-                    docker.withRegistry('https://index.docker.io/v1/', "${DOCKER_CREDENTIALS_ID}") {
-                        sh '''
-                            docker tag php-app:latest cyfrifprotech/php-app:latest
-                            docker push cyfrifprotech/php-app:latest
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Run Docker Containers') {
-            steps {
-                script {
-                    echo "Starting Docker containers..."
-                    dir('soumya') {  // Navigate to the 'soumya' directory
-                        sh 'docker-compose up -d'
-                    }
+                    sh 'docker-compose down'
+                    sh 'docker-compose up -d'
                 }
             }
         }
