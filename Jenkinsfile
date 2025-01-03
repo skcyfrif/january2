@@ -2,40 +2,76 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('cyfdoc')
+        DOCKER_IMAGE = "cyfdoc/shiv"  // Docker Hub username/repository
+        TAG = "latest1"
+        IMAGE_NAME = "${DOCKER_IMAGE}:${TAG}"
     }
 
     stages {
         stage('Clone Repository') {
             steps {
-                git branch: 'main', url: 'https://github.com/skcyfrif/january2.git'
+                checkout scm
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Docker Login') {
             steps {
-                script {
-                    sh 'docker build -t cyfdoc/app-name .'
+                echo 'Logging into Docker Hub...'
+                withCredentials([usernamePassword(credentialsId: 'cyfdoc', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh '''
+                        echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+                    '''
                 }
             }
         }
 
-        stage('Push Docker Image to DockerHub') {
+        stage('Build or Pull Docker Image') {
             steps {
                 script {
-                    sh 'echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin'
-                    sh 'docker push cyfdoc/app-name'
+                    def imageExists = sh(script: "docker images -q ${IMAGE_NAME}", returnStdout: true).trim()
+                    if (imageExists) {
+                        echo "Image ${IMAGE_NAME} exists. Pulling latest image."
+                        sh "docker pull ${IMAGE_NAME}"
+                    } else {
+                        echo "Image ${IMAGE_NAME} not found. Building image."
+                        sh "docker build -t ${IMAGE_NAME} ."
+                    }
                 }
             }
         }
 
-        stage('Deploy Application') {
+        stage('Push to Docker Hub') {
             steps {
-                script {
-                    sh 'docker-compose down'
-                    sh 'docker-compose up -d'
+                echo 'Pushing Docker Image to Docker Hub...'
+                withCredentials([usernamePassword(credentialsId: 'cyfdoc', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh '''
+                        echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+                        docker push ${IMAGE_NAME}
+                    '''
                 }
             }
+        }
+
+        stage('Deploy with Docker Compose') {
+            steps {
+                echo 'Deploying using Docker Compose...'
+                sh '''
+                    docker-compose down || echo "No containers to stop."
+                    docker-compose up -d
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline completed.'
+        }
+        success {
+            echo 'Pipeline executed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check the logs for details.'
         }
     }
 }
