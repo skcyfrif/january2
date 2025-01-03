@@ -1,17 +1,23 @@
-# Use a base image for Node.js
-FROM node:16
+# Use a base PHP image with Composer installed
+FROM php:8.1-cli
 
 # Set the working directory
 WORKDIR /app
 
-# Copy application files
+# Copy composer.json and composer.lock first (to leverage caching)
+COPY app/composer.* ./
+
+# Install Composer dependencies
+RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && \
+    php composer-setup.php --install-dir=/usr/local/bin --filename=composer && \
+    rm composer-setup.php && \
+    composer install
+
+# Copy the rest of the application code
 COPY app/ .
 
-# Install dependencies
-RUN npm install
+# Expose the port (if your PHP app uses a specific port, like with a built-in server)
+EXPOSE 8000
 
-# Expose the port the app runs on
-EXPOSE 3000
-
-# Start the application
-CMD ["node", "index.js"]
+# Start the PHP development server (replace with your app's start command)
+CMD ["php", "-S", "0.0.0.0:8000", "-t", "public"]

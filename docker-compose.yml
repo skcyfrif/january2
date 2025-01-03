@@ -4,7 +4,9 @@ services:
     build:
       context: .
     ports:
-      - "3000:3000"
+      - "8000:8000"
+    volumes:
+      - ./app:/app
     depends_on:
       - db
 
@@ -16,16 +18,14 @@ services:
       MYSQL_DATABASE: cyfrif_campaign
       MYSQL_USER: campaign_user
       MYSQL_PASSWORD: campaign_password
-    volumes:
-      - ./database:/docker-entrypoint-initdb.d
     ports:
-      - "3315:3306"
+      - "3378:3306"
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     restart: always
     ports:
-      - "8082:80"
+      - "8078:80"
     environment:
       PMA_HOST: db
       PMA_PORT: 3306
