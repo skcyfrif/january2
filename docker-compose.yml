@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .  # Use the current directory as the build context
+      dockerfile: Dockerfile  # Use the Dockerfile in the current directory
+    container_name: php-app
+    image: php-app:latest
+    ports:
+      - "7070:80"  # Map port 7070 on the host to port 80 in the container
+    volumes:
+      - ./:/var/www/html  # Mount the current directory to /var/www/html
+    networks:
+      - app-network
+    depends_on:
+      - mysql-db  # Ensure MySQL starts before the PHP app
+    environment:
+      DB_HOST: mysql-db  # MySQL service hostname
+      DB_USER: campaign_user  # Regular user for the database
+      DB_PASSWORD: campaign_password # Password for the regular user
+      DB_NAME: cyfrif_campaign  # Name of the database to use
+
+  mysql-db:
+    image: mysql:5.7
+    container_name: mysql-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root  # Secure root password
+      MYSQL_DATABASE: cyfrif_campaign # Initial database to be created
+      MYSQL_USER: campaign_user  # Regular user for the application
+      MYSQL_PASSWORD: campaign_password # Password for the regular user
+    networks:
+      - app-network
+    ports:
+      - "3309:3306"  # Expose MySQL port 3306 on host as 3309
+    volumes:
+      - mysql_data:/var/lib/mysql  # Persist MySQL data
+
+  phpmyadmin:
+    container_name: phpmyadmin_mysql
+    image: phpmyadmin/phpmyadmin
+    environment:
+      PMA_HOST: mysql-db  # Connect to the MySQL service
+      PMA_USER: campaign_user  # Regular user credentials
+      PMA_PASSWORD: campaign_password # Password for the regular user
+      PMA_PORT: 3306
+    ports:
+      - "8181:80"  # Access phpMyAdmin via port 8181
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
